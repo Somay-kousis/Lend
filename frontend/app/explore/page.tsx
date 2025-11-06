@@ -1,97 +1,100 @@
 "use client"
 
-import { useState } from "react"
-import { Search, X, Star } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Search, X, Star, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
+import { useAuth } from "@/contexts/AuthContext"
+import { itemsService, type Item } from "@/lib/items"
+import { requestsService } from "@/lib/requests"
+import { ProtectedRoute } from "@/components/ProtectedRoute"
 
-export default function ExplorePage() {
+function ExploreContent() {
+  const { user, logout } = useAuth()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
-  const [selectedItem, setSelectedItem] = useState<any | null>(null)
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null)
   const [rating, setRating] = useState(0)
+  const [items, setItems] = useState<Item[]>([])
+  const [loading, setLoading] = useState(true)
+  const [requesting, setRequesting] = useState(false)
+  const [requestSuccess, setRequestSuccess] = useState(false)
 
-  const categories = ["all", "Photography", "Outdoor", "Tech", "Audio", "Music", "Tools", "Sports"]
+  const categories = ["all", "Photography", "Outdoor", "Tech", "Audio", "Music", "Tools", "Sports", "Other"]
 
-  const items = [
-    {
-      id: 1,
-      name: "Vintage Film Camera",
-      ownerEmail: "alex@example.com",
-      ownerRating: 4.8,
-      ownerRatingCount: 12,
-      category: "Photography",
-      location: "San Francisco",
-      status: "available",
-      image: "bg-primary/10",
-    },
-    {
-      id: 2,
-      name: "Premium Camping Tent",
-      ownerEmail: "maya@example.com",
-      ownerRating: 4.9,
-      ownerRatingCount: 8,
-      category: "Outdoor",
-      location: "Oakland",
-      status: "borrowed",
-      image: "bg-accent/10",
-    },
-    {
-      id: 3,
-      name: "4K Projector System",
-      ownerEmail: "jordan@example.com",
-      ownerRating: 5.0,
-      ownerRatingCount: 15,
-      category: "Tech",
-      location: "San Jose",
-      status: "available",
-      image: "bg-secondary/10",
-    },
-    {
-      id: 4,
-      name: "Professional Microphone",
-      ownerEmail: "alex@example.com",
-      ownerRating: 4.7,
-      ownerRatingCount: 5,
-      category: "Audio",
-      location: "San Francisco",
-      status: "available",
-      image: "bg-primary/10",
-    },
-    {
-      id: 5,
-      name: "Full DJ Equipment",
-      ownerEmail: "casey@example.com",
-      ownerRating: 4.6,
-      ownerRatingCount: 10,
-      category: "Music",
-      location: "Berkeley",
-      status: "borrowed",
-      image: "bg-accent/10",
-    },
-    {
-      id: 6,
-      name: "Drone Pro Max",
-      ownerEmail: "riley@example.com",
-      ownerRating: 5.0,
-      ownerRatingCount: 20,
-      category: "Tech",
-      location: "Palo Alto",
-      status: "available",
-      image: "bg-secondary/10",
-    },
-  ]
+  useEffect(() => {
+    loadItems()
+  }, [])
+
+  const loadItems = async () => {
+    setLoading(true)
+    const response = await itemsService.getAllItems()
+    
+    if (response.success && response.items) {
+      // Filter out user's own items
+      const otherUsersItems = response.items.filter(item => item.ownerId !== user?.id)
+      setItems(otherUsersItems)
+    }
+    
+    setLoading(false)
+  }
 
   const filteredItems = items.filter((item) => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         item.description.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = selectedCategory === "all" || item.category === selectedCategory
     return matchesSearch && matchesCategory
   })
 
-  const handleRequest = () => {
-    setSelectedItem(null)
-    setRating(0)
+  const handleRequest = async () => {
+    if (!selectedItem || !user) return
+
+    setRequesting(true)
+    
+    const response = await requestsService.createRequest({
+      itemId: selectedItem.id,
+      itemName: selectedItem.name,
+      requesterId: user.id,
+      requesterName: user.name,
+      requesterEmail: user.email,
+      ownerId: selectedItem.ownerId,
+      ownerName: selectedItem.ownerName,
+      ownerEmail: selectedItem.ownerEmail,
+      rating: rating,
+    })
+
+    setRequesting(false)
+
+    if (response.success) {
+      setRequestSuccess(true)
+      setTimeout(() => {
+        setSelectedItem(null)
+        setRating(0)
+        setRequestSuccess(false)
+      }, 2000)
+    }
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-background">
+        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
+          <nav className="flex items-center justify-between px-8 py-6 max-w-7xl mx-auto">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-primary rounded-lg transition-transform hover:scale-110 duration-300" />
+              <span className="text-xl font-black tracking-tight">BORROW</span>
+            </Link>
+          </nav>
+        </header>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="space-y-4 text-center">
+            <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" />
+            <p className="text-muted-foreground">Loading items...</p>
+          </div>
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -114,9 +117,14 @@ export default function ExplorePage() {
                 Requests
               </Button>
             </Link>
-            <Button className="bg-primary text-primary-foreground text-sm font-semibold interactive-grow">
-              Profile
+            <Button 
+              onClick={logout}
+              variant="ghost" 
+              className="text-sm font-medium"
+            >
+              Logout
             </Button>
+
           </div>
         </nav>
       </header>
@@ -169,30 +177,43 @@ export default function ExplorePage() {
               style={{ animationDelay: `${idx * 0.05}s` }}
             >
               <div
-                className={`aspect-square w-full transition-all duration-300 ${item.image} group-hover:opacity-80`}
-              />
+                className={`aspect-square w-full transition-all duration-300 ${item.image} group-hover:opacity-80 flex items-center justify-center`}
+              >
+                <div className="text-6xl opacity-20">📦</div>
+              </div>
 
               <div className="p-6 space-y-4">
                 <div>
                   <h3 className="text-lg font-black leading-tight">{item.name}</h3>
+                  {item.description && (
+                    <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                      {item.description}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between text-sm">
-                  <p className="text-muted-foreground">{item.ownerEmail}</p>
+                  <div>
+                    <p className="font-semibold">{item.ownerName}</p>
+                    <p className="text-xs text-muted-foreground">{item.location}</p>
+                  </div>
                   <div className="flex items-center gap-1">
                     <Star className="w-4 h-4 fill-primary text-primary" />
-                    <span className="font-semibold">{item.ownerRating}</span>
+                    <span className="font-semibold">{item.ownerRating.toFixed(1)}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t border-border">
-                  <span
-                    className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                      item.status === "available" ? "bg-accent/20 text-accent" : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {item.status === "available" ? "Available" : "Borrowed"}
-                  </span>
+                  <div className="space-y-1">
+                    <span
+                      className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                        item.status === "available" ? "bg-accent/20 text-accent" : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {item.status === "available" ? "Available" : "Borrowed"}
+                    </span>
+                    <p className="text-xs text-muted-foreground">{item.condition}</p>
+                  </div>
                   <Button
                     size="sm"
                     disabled={item.status !== "available"}
@@ -207,7 +228,7 @@ export default function ExplorePage() {
           ))}
         </div>
 
-        {filteredItems.length === 0 && (
+        {filteredItems.length === 0 && !loading && (
           <div className="text-center py-24 space-y-4">
             <p className="text-2xl font-bold">No items found</p>
             <p className="text-muted-foreground">Try adjusting your search or filters</p>
@@ -215,80 +236,117 @@ export default function ExplorePage() {
         )}
       </section>
 
+      {/* Request Modal */}
       {selectedItem && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-background border border-border rounded-3xl max-w-lg w-full space-y-6 p-8 fade-in-up shadow-xl">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-3xl font-black mb-2">Request Item</h2>
-                <p className="text-muted-foreground">{selectedItem.name}</p>
+            {requestSuccess ? (
+              <div className="text-center py-8 space-y-4">
+                <div className="w-16 h-16 bg-accent/20 rounded-full flex items-center justify-center mx-auto">
+                  <svg className="w-8 h-8 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-black">Request Sent!</h2>
+                <p className="text-muted-foreground">The owner will review your request</p>
               </div>
-              <button
-                onClick={() => {
-                  setSelectedItem(null)
-                  setRating(0)
-                }}
-                className="p-2 hover:bg-muted rounded-xl transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            ) : (
+              <>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-3xl font-black mb-2">Request Item</h2>
+                    <p className="text-muted-foreground">{selectedItem.name}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedItem(null)
+                      setRating(0)
+                    }}
+                    className="p-2 hover:bg-muted rounded-xl transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
 
-            <div className="space-y-6">
-              {/* Item Preview */}
-              <div className={`w-full h-40 rounded-2xl ${selectedItem.image} border border-border/60`} />
+                <div className="space-y-6">
+                  {/* Item Preview */}
+                  <div className={`w-full h-40 rounded-2xl ${selectedItem.image} border border-border/60 flex items-center justify-center`}>
+                    <div className="text-6xl opacity-30">📦</div>
+                  </div>
 
-              {/* Owner Info */}
-              <div className="flex items-center gap-4 p-4 bg-card rounded-2xl border border-border/60">
-                <div className="w-12 h-12 rounded-full bg-primary/20" />
-                <div className="flex-1">
-                  <p className="font-semibold">{selectedItem.ownerEmail}</p>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-primary text-primary" />
-                    <span className="text-sm text-muted-foreground">
-                      {selectedItem.ownerRating} ({selectedItem.ownerRatingCount})
-                    </span>
+                  {/* Owner Info */}
+                  <div className="flex items-center gap-4 p-4 bg-card rounded-2xl border border-border/60">
+                    <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-xl">
+                      {selectedItem.ownerName.charAt(0)}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold">{selectedItem.ownerName}</p>
+                      <p className="text-sm text-muted-foreground">{selectedItem.location}</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <Star className="w-4 h-4 fill-primary text-primary" />
+                        <span className="text-sm text-muted-foreground">
+                          {selectedItem.ownerRating.toFixed(1)} ({selectedItem.ownerRatingCount} reviews)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Rating System */}
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold">How urgently do you need this?</p>
+                    <div className="flex gap-2 justify-center">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button key={star} onClick={() => setRating(star)} className="transition-transform hover:scale-110">
+                          <Star
+                            className={`w-8 h-8 ${star <= rating ? "fill-primary text-primary" : "text-muted-foreground"}`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-border hover:bg-muted bg-transparent"
+                      onClick={() => {
+                        setSelectedItem(null)
+                        setRating(0)
+                      }}
+                      disabled={requesting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleRequest}
+                      className="flex-1 bg-primary text-primary-foreground font-semibold interactive-grow"
+                      disabled={requesting}
+                    >
+                      {requesting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          Sending...
+                        </>
+                      ) : (
+                        "Send Request"
+                      )}
+                    </Button>
                   </div>
                 </div>
-              </div>
-
-              {/* Rating System */}
-              <div className="space-y-3">
-                <p className="text-sm font-semibold">Rate this item</p>
-                <div className="flex gap-2 justify-center">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button key={star} onClick={() => setRating(star)} className="transition-transform hover:scale-110">
-                      <Star
-                        className={`w-8 h-8 ${star <= rating ? "fill-primary text-primary" : "text-muted-foreground"}`}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Button
-                  variant="outline"
-                  className="flex-1 border-border hover:bg-muted bg-transparent"
-                  onClick={() => {
-                    setSelectedItem(null)
-                    setRating(0)
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleRequest}
-                  className="flex-1 bg-primary text-primary-foreground font-semibold interactive-grow"
-                >
-                  Send Request
-                </Button>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </div>
       )}
     </main>
+  )
+}
+
+export default function ExplorePage() {
+  return (
+    <ProtectedRoute>
+      <ExploreContent />
+    </ProtectedRoute>
   )
 }

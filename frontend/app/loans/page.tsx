@@ -74,11 +74,7 @@ export default function LoansPage() {
             <span className="text-xl font-black tracking-tight">BORROW</span>
           </Link>
           <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="ghost" className="text-sm font-medium">
-                Dashboard
-              </Button>
-            </Link>
+
             <Link href="/explore">
               <Button variant="ghost" className="text-sm font-medium">
                 Explore
