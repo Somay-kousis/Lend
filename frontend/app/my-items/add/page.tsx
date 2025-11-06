@@ -2,11 +2,19 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Loader2, AlertCircle } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
+import { itemsService } from "@/lib/items"
+import { ProtectedRoute } from "@/components/ProtectedRoute"
 
-export default function AddItemPage() {
+function AddItemContent() {
+  const { user } = useAuth()
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -16,6 +24,43 @@ export default function AddItemPage() {
 
   const categories = ["Photography", "Outdoor", "Tech", "Audio", "Music", "Tools", "Sports", "Other"]
   const conditions = ["Like New", "Excellent", "Good", "Fair"]
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+
+    if (!user) {
+      setError("You must be logged in to add items")
+      return
+    }
+
+    if (!formData.name || !formData.category || !formData.condition) {
+      setError("Please fill in all required fields")
+      return
+    }
+
+    setLoading(true)
+
+    const response = await itemsService.createItem({
+      name: formData.name,
+      description: formData.description,
+      category: formData.category,
+      condition: formData.condition,
+      ownerId: user.id,
+      ownerEmail: user.email,
+      ownerName: user.name,
+      location: user.location,
+      image: `bg-${["primary", "accent", "secondary"][Math.floor(Math.random() * 3)]}/10`,
+    })
+
+    setLoading(false)
+
+    if (response.success) {
+      router.push("/my-items")
+    } else {
+      setError(response.message || "Failed to create item")
+    }
+  }
 
   return (
     <main className="min-h-screen bg-background">
@@ -42,14 +87,24 @@ export default function AddItemPage() {
           <p className="text-muted-foreground mt-2">Share something you&apos;d like to lend</p>
         </div>
 
-        <form className="border border-border/60 bg-card rounded-2xl p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="border border-border/60 bg-card rounded-2xl p-8 space-y-6">
+          {error && (
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-destructive">{error}</p>
+            </div>
+          )}
+
           <div className="space-y-2 fade-in-up" style={{ animationDelay: "0.1s" }}>
-            <label className="text-sm font-semibold">Item Name</label>
+            <label className="text-sm font-semibold">
+              Item Name <span className="text-destructive">*</span>
+            </label>
             <Input
               placeholder="e.g., Vintage Film Camera"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="bg-input border border-border/60"
+              required
             />
           </div>
 
@@ -66,11 +121,14 @@ export default function AddItemPage() {
 
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-2 fade-in-up" style={{ animationDelay: "0.2s" }}>
-              <label className="text-sm font-semibold">Category</label>
+              <label className="text-sm font-semibold">
+                Category <span className="text-destructive">*</span>
+              </label>
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 className="w-full bg-input border border-border/60 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                required
               >
                 <option value="">Select category</option>
                 {categories.map((cat) => (
@@ -82,11 +140,14 @@ export default function AddItemPage() {
             </div>
 
             <div className="space-y-2 fade-in-up" style={{ animationDelay: "0.25s" }}>
-              <label className="text-sm font-semibold">Condition</label>
+              <label className="text-sm font-semibold">
+                Condition <span className="text-destructive">*</span>
+              </label>
               <select
                 value={formData.condition}
                 onChange={(e) => setFormData({ ...formData, condition: e.target.value })}
                 className="w-full bg-input border border-border/60 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                required
               >
                 <option value="">Select condition</option>
                 {conditions.map((cond) => (
@@ -100,16 +161,40 @@ export default function AddItemPage() {
 
           <div className="flex gap-4 pt-6 fade-in-up" style={{ animationDelay: "0.3s" }}>
             <Link href="/my-items" className="flex-1">
-              <Button variant="outline" className="w-full font-semibold bg-transparent">
+              <Button 
+                type="button"
+                variant="outline" 
+                className="w-full font-semibold bg-transparent"
+                disabled={loading}
+              >
                 Cancel
               </Button>
             </Link>
-            <Button className="flex-1 bg-primary text-primary-foreground font-semibold interactive-grow">
-              List Item
+            <Button 
+              type="submit"
+              className="flex-1 bg-primary text-primary-foreground font-semibold interactive-grow"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Creating...
+                </>
+              ) : (
+                "List Item"
+              )}
             </Button>
           </div>
         </form>
       </section>
     </main>
+  )
+}
+
+export default function AddItemPage() {
+  return (
+    <ProtectedRoute>
+      <AddItemContent />
+    </ProtectedRoute>
   )
 }
