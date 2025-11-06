@@ -1,29 +1,26 @@
-import type React from "react"
 import type { Metadata } from "next"
-
-import { Analytics } from "@vercel/analytics/next"
+import { Inter } from "next/font/google"
 import "./globals.css"
-import Header from "@/components/header"
+import { AuthProvider } from "@/contexts/AuthContext"
 
-
+const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "BORROW - Share What Matters",
-  description: "Borrow items from your community. Stop buying, start sharing.",
-  generator: "v0.app",
+  title: "BORROW - Share and Borrow Items",
+  description: "A community platform for sharing and borrowing items",
 }
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
     <html lang="en">
-      <body className={`font-sans antialiased`}>
-        <Header />
-        {children}
-        <Analytics />
+      <body className={inter.className}>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   )
