@@ -177,9 +177,19 @@ function ExploreContent() {
               style={{ animationDelay: `${idx * 0.05}s` }}
             >
               <div
-                className={`aspect-square w-full transition-all duration-300 ${item.image} group-hover:opacity-80 flex items-center justify-center`}
+                className={`aspect-square w-full transition-all duration-300 ${
+                  item.image.startsWith('bg-') ? item.image : ''
+                } group-hover:opacity-80 flex items-center justify-center overflow-hidden`}
               >
-                <div className="text-6xl opacity-20">📦</div>
+                {item.image.startsWith('data:image') ? (
+                  <img 
+                    src={item.image} 
+                    alt={item.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="text-6xl opacity-20">📦</div>
+                )}
               </div>
 
               <div className="p-6 space-y-4">
@@ -213,6 +223,9 @@ function ExploreContent() {
                       {item.status === "available" ? "Available" : "Borrowed"}
                     </span>
                     <p className="text-xs text-muted-foreground">{item.condition}</p>
+                    {item.pricePerDay && (
+                      <p className="text-sm font-bold text-primary">₹{item.pricePerDay}/day</p>
+                    )}
                   </div>
                   <Button
                     size="sm"
@@ -270,8 +283,18 @@ function ExploreContent() {
 
                 <div className="space-y-6">
                   {/* Item Preview */}
-                  <div className={`w-full h-40 rounded-2xl ${selectedItem.image} border border-border/60 flex items-center justify-center`}>
-                    <div className="text-6xl opacity-30">📦</div>
+                  <div className={`w-full h-40 rounded-2xl ${
+                    selectedItem.image.startsWith('bg-') ? selectedItem.image : ''
+                  } border border-border/60 flex items-center justify-center overflow-hidden`}>
+                    {selectedItem.image.startsWith('data:image') ? (
+                      <img 
+                        src={selectedItem.image} 
+                        alt={selectedItem.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="text-6xl opacity-30">📦</div>
+                    )}
                   </div>
 
                   {/* Owner Info */}
@@ -288,6 +311,9 @@ function ExploreContent() {
                           {selectedItem.ownerRating.toFixed(1)} ({selectedItem.ownerRatingCount} reviews)
                         </span>
                       </div>
+                      {selectedItem.pricePerDay && (
+                        <p className="text-lg font-bold text-primary mt-2">₹{selectedItem.pricePerDay}/day</p>
+                      )}
                     </div>
                   </div>
 
