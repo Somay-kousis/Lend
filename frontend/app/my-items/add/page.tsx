@@ -11,16 +11,15 @@ import { itemsService } from "@/lib/items"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 
 function AddItemContent() {
-  const { user } = useAuth()
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     category: "",
     condition: "",
+    pricePerDay: "",
+    image: "",
   })
+  const [imagePreview, setImagePreview] = useState("")
 
   const categories = ["Photography", "Outdoor", "Tech", "Audio", "Music", "Tools", "Sports", "Other"]
   const conditions = ["Like New", "Excellent", "Good", "Fair"]
